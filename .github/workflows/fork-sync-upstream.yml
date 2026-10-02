@@ -1,0 +1,44 @@
+# Fork-only: merge upstream main into this fork weekly, then rebuild the image.
+# A merge conflict fails the run (GitHub emails on failure); resolve by hand:
+#   git fetch upstream && git merge upstream/main && git push
+name: fork-sync-upstream
+on:
+  schedule:
+    - cron: "17 9 * * 1" # Mondays 09:17 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge upstream/main
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/router-for-me/CLIProxyAPI.git
+          git fetch upstream main
+          before=$(git rev-parse HEAD)
+          git merge --no-edit upstream/main
+          if [ "$(git rev-parse HEAD)" = "$before" ]; then echo "changed=false" >> $GITHUB_OUTPUT; else echo "changed=true" >> $GITHUB_OUTPUT; fi
+      - name: Build check
+        if: steps.merge.outputs.changed == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - if: steps.merge.outputs.changed == 'true'
+        run: go build ./... && go test ./sdk/cliproxy/auth/ -run TestResetFirstSelector -count=1
+      - name: Push and rebuild image
+        if: steps.merge.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git push origin main
+          # pushes made with GITHUB_TOKEN don't fire push-triggered workflows; dispatch explicitly
+          gh workflow run fork-image.yml --ref main
