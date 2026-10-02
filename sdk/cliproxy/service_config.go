@@ -69,6 +69,8 @@ func newRoutingSelector(state routingRuntimeState) coreauth.Selector {
 		selector = &coreauth.WeightedRoundRobinSelector{}
 	case "fill-first":
 		selector = &coreauth.FillFirstSelector{}
+	case "reset-first":
+		selector = &coreauth.ResetFirstSelector{}
 	default:
 		selector = &coreauth.RoundRobinSelector{}
 	}
