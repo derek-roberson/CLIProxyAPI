@@ -41,4 +41,5 @@ jobs:
         run: |
           git push origin main
           # pushes made with GITHUB_TOKEN don't fire push-triggered workflows; dispatch explicitly
-          gh workflow run fork-image.yml --ref main
+          # --repo: the added "upstream" remote makes gh default to router-for-me/CLIProxyAPI
+          gh workflow run fork-image.yml --ref main --repo "${{ github.repository }}"
